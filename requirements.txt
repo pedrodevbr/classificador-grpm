@@ -3,3 +3,5 @@ pandas
 openai
 pydantic
 openpyxl
+pypdf
+Pillow

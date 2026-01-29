@@ -53,8 +53,53 @@ class ClassificadorHierarquicoOpenRouter:
             'Grupo de mercadorias': 'codigo_grupo',
             'GRMP': 'codigo_grupo'
         }
+    
+    def extrair_texto_pdf(self, pdf_file):
+        import pypdf
+        try:
+            reader = pypdf.PdfReader(pdf_file)
+            text = ""
+            for page in reader.pages:
+                text += page.extract_text() + "\n"
+            return text
+        except Exception as e:
+            logger.error(f"Erro ao ler PDF: {e}")
+            return f"Erro ao ler PDF: {str(e)}"
+
+    def descrever_imagem(self, image_bytes, mime_type="image/jpeg"):
+        """Usa um modelo de visão para descrever a imagem focando em classificação industrial."""
+        import base64
+        
+        base64_image = base64.b64encode(image_bytes).decode('utf-8')
+        
+        prompt = "Descreva este item de forma simplificada para fins de classificação de compras"
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model, # O modelo deve suportar visão (ex: gpt-4o, gemini-flash)
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:{mime_type};base64,{base64_image}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=300
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"Erro na descrição de imagem: {e}")
+            return f"Erro ao processar imagem: {str(e)}"
 
     def carregar_hierarquia(self, arquivo_grupos):
+        # ... (rest of method)
         logger.info(f"Carregando hierarquia de {arquivo_grupos}...")
         try:
             df = pd.read_excel(arquivo_grupos).dropna()
