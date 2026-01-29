@@ -21,7 +21,7 @@ navegando pela árvore de hierarquia de grupos.
 with st.sidebar:
     st.header("Configurações")
     #api_key = st.text_input("OpenRouter API Key", type="password", help="Insira sua chave API do OpenRouter")
-    api_key="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"
+    api_key="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"
     # Se não houver chave no input, tenta pegar do ambiente
     if not api_key:
         api_key = os.getenv("OPENROUTER_API_KEY")
