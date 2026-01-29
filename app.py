@@ -20,8 +20,8 @@ navegando pela árvore de hierarquia de grupos.
 # Sidebar para Configurações
 with st.sidebar:
     st.header("Configurações")
-    api_key = st.text_input("OpenRouter API Key", type="password", help="Insira sua chave API do OpenRouter")
-    
+    #api_key = st.text_input("OpenRouter API Key", type="password", help="Insira sua chave API do OpenRouter")
+    api_key="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"
     # Se não houver chave no input, tenta pegar do ambiente
     if not api_key:
         api_key = os.getenv("OPENROUTER_API_KEY")
@@ -30,7 +30,7 @@ with st.sidebar:
 
     model_name = st.selectbox(
         "Modelo LLM",
-        ["x-ai/grok-4.1-fast", "openai/gpt-4o-mini", "anthropic/claude-3-haiku",'google/gemini-3-flash-preview','deepseek/deepseek-v3.2','moonshotai/kimi-k2.5'],
+        ["x-ai/grok-4.1-fast", "openai/gpt-5-nano", "anthropic/claude-3-haiku",'google/gemini-3-flash-preview','deepseek/deepseek-v3.2'],
         index=0
     )
 
