@@ -11,9 +11,9 @@ st.set_page_config(
 )
 
 # Título e Descrição
-st.title("📦 Classificador de Mercadorias (Hierárquico)")
+st.title("📦 Classificador de Materiais ")
 st.markdown("""
-Este aplicativo utiliza Inteligência Artificial (Grok-4.1-fast) para classificar itens mercadológicos 
+Este aplicativo utiliza Inteligência Artificial para classificar materiais
 navegando pela árvore de hierarquia de grupos.
 """)
 
@@ -30,7 +30,7 @@ with st.sidebar:
 
     model_name = st.selectbox(
         "Modelo LLM",
-        ["x-ai/grok-4.1-fast", "openai/gpt-4o-mini", "anthropic/claude-3-haiku"],
+        ["x-ai/grok-4.1-fast", "openai/gpt-4o-mini", "anthropic/claude-3-haiku",'google/gemini-3-flash-preview','deepseek/deepseek-v3.2','moonshotai/kimi-k2.5'],
         index=0
     )
 
@@ -104,6 +104,17 @@ if btn_classificar:
                         })
                         # Atualizar tabela em tempo real
                         table_placeholder.table(pd.DataFrame(path_data))
+                    
+                    elif evento["type"] == "backtrack":
+                         dados = evento["data"]
+                         # Remove o último passo pois falhou
+                         if path_data:
+                             path_data.pop()
+                         table_placeholder.table(pd.DataFrame(path_data))
+                         st.toast(f"↩️ Backtracking: {dados['razao']}")
+                    
+                    elif evento["type"] == "info":
+                        st.info(evento["data"]["msg"])
                         
                     elif evento["type"] == "final":
                         final_result = evento["data"]

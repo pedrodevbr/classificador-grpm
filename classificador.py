@@ -91,7 +91,7 @@ class ClassificadorHierarquicoOpenRouter:
 
     def _construir_prompt(self, descritivo, opcoes):
         lista_opcoes = "\n".join([f"- {no.codigo}: {no.descricao}" for no in opcoes])
-        print(lista_opcoes)
+        
         prompt = f"""
 Você é um classificador especialista de materiais industriais.
 Analise o ITEM abaixo e escolha a categoria que melhor o descreve dentre as OPÇÕES fornecidas.
@@ -103,12 +103,13 @@ OPÇÕES DO NÍVEL ATUAL:
 
 INSTRUÇÕES:
 1. Escolha apenas UMA opção da lista acima.
-2. Responda estritamente no formato JSON.
-3. Retorne APENAS o código numérico no campo "codigo_escolhido".
+2. Se NENHUMA opção parecer correta para o item, responda com "NULL".
+3. Responda estritamente no formato JSON.
+4. Retorne APENAS o código numérico no campo "codigo_escolhido" (ou "NULL").
 
 Formato Obrigatório:
 {{
-  "codigo_escolhido": "CÓDIGO_NUMÉRICO"
+  "codigo_escolhido": "CÓDIGO_NUMÉRICO_OU_NULL"
 }}
 """
         return prompt
@@ -144,58 +145,116 @@ Formato Obrigatório:
             return None
 
     def classificar_item(self, descritivo):
-        """Navega na árvore usando o LLM para decidir cada passo (Generator)."""
-        no_atual = self.raiz
-        caminho = []
-        
+        """Inicia a classificação recursiva com backtracking."""
         logger.info(f"Classificando: {descritivo[:40]}...")
+        caminho_final = []
         
-        while not no_atual.eh_folha():
-            opcoes = list(no_atual.filhos.values())
-            
-            if not opcoes:
-                break
+        # Gerador que delega para o método recursivo
+        yield from self._navegar_recursivo(self.raiz, descritivo, caminho_final)
+        
+        if not caminho_final:
+             # Se falhar desde a raiz (não deveria acontecer se houver opções)
+             caminho_final = [] 
 
-            if len(opcoes) == 1:
-                no_atual = opcoes[0]
-                step_data = (no_atual.codigo, no_atual.descricao)
-                caminho.append(step_data)
-                yield {"type": "step", "data": {"codigo": no_atual.codigo, "descricao": no_atual.descricao, "auto": True}}
-                continue
+        # O último nó do caminho é o resultado
+        if caminho_final:
+            codigo_final, descricao_final = caminho_final[-1]
+        else:
+             # Fallback total
+             codigo_final = self.raiz.codigo
+             descricao_final = self.raiz.descricao
+
+        yield {
+            "type": "final", 
+            "data": {
+                'codigo_final': codigo_final,
+                'descricao_final': descricao_final,
+                'caminho': caminho_final
+            }
+        }
+
+    def _navegar_recursivo(self, no_atual, descritivo, caminho_historico):
+        """
+        Método recursivo que tenta encontrar uma folha válida a partir de no_atual.
+        Retorna True se encontrou um caminho válido até uma folha (ou aceitou o nó atual).
+        Retorna False se este ramo falhou (backtracking).
+        """
+        
+        # 1. Se é folha, sucesso
+        if no_atual.eh_folha():
+            return True
+
+        opcoes = list(no_atual.filhos.values())
+        if not opcoes:
+            return True
+
+        # Se só tem uma opção, descemos direto sem perguntar ao LLM (atalho)
+        if len(opcoes) == 1:
+            filho = opcoes[0]
+            step_data = (filho.codigo, filho.descricao)
+            caminho_historico.append(step_data)
+            yield {"type": "step", "data": {"codigo": filho.codigo, "descricao": filho.descricao, "auto": True}}
             
-            prompt = self._construir_prompt(descritivo, opcoes)
+            if (yield from self._navegar_recursivo(filho, descritivo, caminho_historico)):
+                return True
+            else:
+                # Se o único filho falhar, então este nó também falha
+                caminho_historico.pop()
+                return False
+
+        # Loop de tentativas para escolha entre múltiplos filhos
+        opcoes_candidatas = opcoes.copy()
+        
+        while opcoes_candidatas:
+            # Pergunta ao LLM qual o melhor entre os candidatos atuais
+            prompt = self._construir_prompt(descritivo, opcoes_candidatas)
             codigo_escolhido = self._chamar_llm(prompt)
             
+            # Se LLM não escolheu nada válido ou retornou nulo (opção de rejeição)
             if not codigo_escolhido:
-                logger.warning(f"Falha na decisão do nível {no_atual.codigo}")
-                break
-                
-            # Limpeza extra se necessário
+                logger.info(f"LLM não escolheu nada em {no_atual.codigo} ou indicou rejeição.")
+                yield {"type": "info", "data": {"msg": f"Nenhuma opção adequada em {no_atual.descricao}. Voltando..."}}
+                return False # Backtrack para o pai escolher outro ramo (se houver)
+
+            # Valida codigo retornado
             escolha = str(codigo_escolhido).strip()
-            if escolha not in no_atual.filhos:
+            # Tenta limpar sufixos comuns
+            if escolha not in [o.codigo for o in opcoes_candidatas]:
                  escolha_limpa = escolha.split(' ')[0].split(':')[0].strip()
-                 if escolha_limpa in no_atual.filhos:
+                 if escolha_limpa in [o.codigo for o in opcoes_candidatas]:
                      escolha = escolha_limpa
             
-            if escolha in no_atual.filhos:
-                no_escolhido = no_atual.filhos[escolha]
+            # Encontra o objeto nó correspondente
+            no_escolhido = next((o for o in opcoes_candidatas if o.codigo == escolha), None)
+            
+            if no_escolhido:
+                # Tenta descer neste ramo
                 step_data = (no_escolhido.codigo, no_escolhido.descricao)
-                caminho.append(step_data)
+                caminho_historico.append(step_data)
                 
                 yield {"type": "step", "data": {"codigo": no_escolhido.codigo, "descricao": no_escolhido.descricao, "auto": False}}
                 
-                no_atual = no_escolhido
+                # RECURSÃO: Tenta descer a partir do escolhido
+                if (yield from self._navegar_recursivo(no_escolhido, descritivo, caminho_historico)):
+                    return True # Sucesso lá embaixo, propaga True pra cima
+                else:
+                    # FALHA LÁ EMBAIXO -> BACKTRACKING
+                    # O ramo escolhido não deu certo (chegou num beco sem saída ou foi rejeitado)
+                    logger.info(f"Backtracking: Ramo {no_escolhido.codigo} rejeitado, tentando outro irmão.")
+                    caminho_historico.pop() # Remove do histórico
+                    opcoes_candidatas.remove(no_escolhido) # Remove das opções pra não escolher de novo
+                    yield {"type": "backtrack", "data": {"codigo": no_escolhido.codigo, "razao": "Ramo inválido, tentando outra opção..."}}
+                    # O loop continua e o LLM será chamado de novo com menos opções
             else:
-                logger.warning(f"Alucinação: Código '{escolha}' inválido para nó pai {no_atual.codigo}")
-                break
-                
-        final_result = {
-            'codigo_final': no_atual.codigo,
-            'descricao_final': no_atual.descricao,
-            'caminho': caminho
-        }
-        
-        yield {"type": "final", "data": final_result}
+                logger.warning(f"Alucinação: {escolha} não está nas opções disponíveis.")
+                # Se alucinou, removemos a "ideia" errada se possível ou apenas pedimos de novo? 
+                # Melhor arriscar pedir de novo. Se for loop infinito, o while cuida (mas ideal ter contador)
+                # Simplesmente ignoramos esse ciclo e tentamos de novo (mas se ele repetir, loop infinito)
+                # Vamos remover 'nada' da lista não ajuda. Vamos forçar return False para segurança
+                return False
+
+        # Se saiu do while, esgotou todas as opções deste nó sem sucesso
+        return False
 
 if __name__ == "__main__":
     # Teste rápido se executado diretamente
