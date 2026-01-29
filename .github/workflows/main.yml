@@ -1,0 +1,9 @@
+jobs:
+  meu-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rodar meu script
+        # AQUI É O PULO DO GATO:
+        env:
+          API_KEY_DO_CODIGO: ${{ secrets.OPENROUTER_API_KEY }}
+        run: python app.py
