@@ -91,7 +91,7 @@ class ClassificadorHierarquicoOpenRouter:
 
     def _construir_prompt(self, descritivo, opcoes):
         lista_opcoes = "\n".join([f"- {no.codigo}: {no.descricao}" for no in opcoes])
-        
+        print(lista_opcoes)
         prompt = f"""
 Você é um classificador especialista de materiais industriais.
 Analise o ITEM abaixo e escolha a categoria que melhor o descreve dentre as OPÇÕES fornecidas.

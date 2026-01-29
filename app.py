@@ -82,10 +82,10 @@ if btn_classificar:
                 
                 # Container para updates em tempo real
                 status_container = st.empty()
-                status_container.info("Iniciando análise...")
+                #status_container.info("Iniciando análise...")
                 
                 # Placeholder para a tabela de caminho
-                st.markdown("### 🛤️ Caminho Percorrido")
+                #st.markdown("### Caminho Percorrido")
                 table_placeholder = st.empty()
                 path_data = []
                 
@@ -113,15 +113,12 @@ if btn_classificar:
                 
                 if final_result:
                     # Exibir Resultados Finais
-                    st.success("✅ Item Classificado com Sucesso!")
+                    #st.success("✅ Item Classificado com Sucesso!")
                     
                     # Resultado Final em Destaque
                     st.markdown("### Resultado Final")
                     st.info(f"**Código:** `{final_result['codigo_final']}`\n\n**Descrição:** {final_result['descricao_final']}")
                     
-                    # Expander com JSON completo
-                    with st.expander("Ver JSON Completo"):
-                        st.json(final_result)
                     
             except Exception as e:
                 st.error(f"Ocorreu um erro durante a classificação: {str(e)}")
