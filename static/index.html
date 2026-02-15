@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classificador de Materiais — ITAIPU</title>
+    <meta name="description" content="Sistema de Classificação Hierárquica de Materiais com IA — ITAIPU Binacional">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ── Reset & Base ─────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f0f4f8;
+            color: #1e293b;
+            min-height: 100vh;
+        }
+
+        /* ── Header ───────────────────────────────────────── */
+        .header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 60%, #3b6fa0 100%);
+            padding: 1.4rem 2rem;
+            box-shadow: 0 4px 20px rgba(30, 58, 95, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        .header::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        .header-content { max-width: 1400px; margin: 0 auto; position: relative; z-index: 1; }
+        .header h1 {
+            color: #fff;
+            font-size: 1.6rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header p {
+            color: #cbd5e1;
+            font-size: 0.9rem;
+            margin-top: 4px;
+        }
+
+        /* ── Layout ────────────────────────────────────────── */
+        .container {
+            max-width: 1400px;
+            margin: 1.5rem auto;
+            padding: 0 1.5rem;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        @media (max-width: 860px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        /* ── Cards ─────────────────────────────────────────── */
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 1.4rem;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.04);
+            border: 1px solid #e2e8f0;
+            transition: box-shadow 0.2s;
+        }
+        .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1), 0 8px 24px rgba(0,0,0,0.06); }
+        .card-header {
+            color: #1e3a5f;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-bottom: 0.6rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ── Form Elements ─────────────────────────────────── */
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #475569;
+            margin-bottom: 6px;
+        }
+        textarea {
+            width: 100%;
+            min-height: 110px;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            color: #1e293b;
+            resize: vertical;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: #fff;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        textarea::placeholder { color: #94a3b8; }
+        select {
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            color: #1e293b;
+            background: #fff;
+            cursor: pointer;
+            margin-bottom: 1rem;
+        }
+        select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        /* ── File Upload ───────────────────────────────────── */
+        .file-upload-area {
+            border: 2px dashed #cbd5e1;
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s;
+            margin-bottom: 1rem;
+            position: relative;
+            background: #f8fafc;
+        }
+        .file-upload-area:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        .file-upload-area.has-file {
+            border-color: #10b981;
+            background: #ecfdf5;
+        }
+        .file-upload-area input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .file-upload-icon { font-size: 1.5rem; margin-bottom: 0.3rem; }
+        .file-upload-text { font-size: 0.8rem; color: #64748b; }
+        .file-upload-name {
+            font-size: 0.8rem;
+            color: #10b981;
+            font-weight: 500;
+            margin-top: 4px;
+        }
+
+        /* ── Button ────────────────────────────────────────── */
+        .btn-primary {
+            width: 100%;
+            padding: 0.8rem 1.2rem;
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.25s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(30, 58, 95, 0.35);
+        }
+        .btn-primary:active:not(:disabled) { transform: translateY(0); }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* ── Candidates ────────────────────────────────────── */
+        .candidates-box {
+            min-height: 180px;
+        }
+        .empty-state {
+            text-align: center;
+            color: #94a3b8;
+            padding: 2.5rem 1rem;
+        }
+        .empty-state .icon { font-size: 2.2rem; margin-bottom: 0.5rem; opacity: 0.5; }
+        .cand-item {
+            display: flex;
+            align-items: center;
+            padding: 0.6rem 0.8rem;
+            margin-bottom: 0.4rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.3s ease;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .cand-item.analyzing {
+            background: #eff6ff;
+            border-color: #93c5fd;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.65; }
+        }
+        .cand-item.selected {
+            background: #ecfdf5;
+            border-color: #34d399;
+        }
+        .cand-item.selected::before {
+            content: "✓";
+            color: #10b981;
+            font-weight: bold;
+            margin-right: 6px;
+            font-size: 0.9rem;
+        }
+        .cand-item.rejected {
+            background: #fef2f2;
+            border-color: #fca5a5;
+            opacity: 0.45;
+        }
+        .cand-code {
+            background: #1e3a5f;
+            color: #fff;
+            padding: 0.2rem 0.55rem;
+            border-radius: 5px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-right: 0.6rem;
+            min-width: 55px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .cand-desc {
+            color: #334155;
+            font-size: 0.85rem;
+            line-height: 1.3;
+        }
+
+        /* ── Loading Indicator ─────────────────────────────── */
+        .loading-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0.5rem 0.7rem;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            margin-bottom: 0.75rem;
+            font-size: 0.8rem;
+            color: #2563eb;
+            font-weight: 500;
+        }
+        .spinner {
+            width: 16px; height: 16px;
+            border: 2.5px solid #bfdbfe;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            flex-shrink: 0;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Path ──────────────────────────────────────────── */
+        .path-section { margin-top: 1.5rem; }
+        .path-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0.7rem;
+            margin: 0.25rem 0;
+            background: #f8fafc;
+            border-radius: 6px;
+            border-left: 3px solid #1e3a5f;
+            animation: fadeInUp 0.3s ease;
+        }
+        .path-level {
+            background: #64748b;
+            color: #fff;
+            padding: 0.1rem 0.45rem;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+            flex-shrink: 0;
+        }
+        .path-code {
+            background: #fbbf24;
+            color: #1e3a5f;
+            padding: 0.15rem 0.45rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            margin-right: 0.5rem;
+            flex-shrink: 0;
+        }
+        .path-desc { color: #334155; font-size: 0.8rem; }
+
+        /* ── Result ────────────────────────────────────────── */
+        .result-box {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+            border-radius: 12px;
+            padding: 1.8rem;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(30, 58, 95, 0.3);
+            margin-top: 1.5rem;
+            animation: fadeInUp 0.4s ease;
+        }
+        .result-label {
+            color: #cbd5e1;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.5rem;
+        }
+        .result-code {
+            color: #fbbf24;
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+        }
+        .result-desc {
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        /* ── Progress Bar ──────────────────────────────────── */
+        .progress-container {
+            margin-top: 1.5rem;
+            display: none;
+        }
+        .progress-container.active { display: block; }
+        .progress-text {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+        .progress-track {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #1e3a5f);
+            border-radius: 3px;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+
+        /* ── Toast ─────────────────────────────────────────── */
+        .toast-container {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .toast {
+            background: #1e293b;
+            color: #fff;
+            padding: 0.7rem 1.2rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            animation: slideIn 0.3s ease, fadeOut 0.5s ease 2.5s forwards;
+            max-width: 350px;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            to { opacity: 0; transform: translateY(10px); }
+        }
+
+        /* ── Suggestion Box ────────────────────────────────── */
+        .suggest-box {
+            background: #fffbeb;
+            border: 1px solid #fcd34d;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 1.5rem;
+            animation: fadeInUp 0.3s ease;
+        }
+        .suggest-title {
+            color: #92400e;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 0.6rem;
+        }
+
+        /* ── Error ─────────────────────────────────────────── */
+        .error-box {
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+            border-radius: 8px;
+            padding: 0.8rem 1rem;
+            color: #991b1b;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+            animation: fadeInUp 0.3s ease;
+        }
+
+        /* ── Footer ────────────────────────────────────────── */
+        .footer {
+            text-align: center;
+            padding: 1.5rem;
+            color: #94a3b8;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1>⚡ Classificador de Materiais</h1>
+            <p>Sistema de Classificação Hierárquica — ITAIPU Binacional</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="grid">
+            <!-- Left Column: Input -->
+            <div class="card">
+                <div class="card-header">📝 Entrada de Dados</div>
+                
+                <label for="model-select">Modelo LLM</label>
+                <select id="model-select"></select>
+
+                <label for="file-input-area">Anexar documento ou imagem</label>
+                <div class="file-upload-area" id="file-input-area">
+                    <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png">
+                    <div class="file-upload-icon">📎</div>
+                    <div class="file-upload-text">PDF, JPG, PNG — clique ou arraste</div>
+                    <div class="file-upload-name" id="file-name"></div>
+                </div>
+
+                <label for="descritivo">Descrição do Material</label>
+                <textarea id="descritivo" placeholder="Ex: Luva de segurança de vaqueta para trabalho com eletricidade..."></textarea>
+
+                <div style="margin-top: 1rem;">
+                    <button class="btn-primary" id="btn-classify" onclick="classify()">
+                        🔍 Classificar Material
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Column: Candidates -->
+            <div class="card">
+                <div class="card-header">🎯 Candidatos em Análise</div>
+                <div class="candidates-box" id="candidates-area">
+                    <div class="empty-state">
+                        <div class="icon">📋</div>
+                        <div>Aguardando classificação...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-container" id="progress-container">
+            <div class="progress-text" id="progress-text">Iniciando...</div>
+            <div class="progress-track">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+        </div>
+
+        <!-- Path -->
+        <div id="path-section"></div>
+
+        <!-- Result -->
+        <div id="result-area"></div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Footer -->
+    <div class="footer">
+        Classificador de Materiais — ITAIPU Binacional © 2026
+    </div>
+
+    <script>
+    // ── State ──────────────────────────────────────────────
+    let isClassifying = false;
+    let pathData = [];
+    let rejectedCodes = new Set();
+    let currentCandidates = [];
+    let stepCount = 0;
+
+    // ── Init ──────────────────────────────────────────────
+    async function init() {
+        try {
+            const res = await fetch('/api/models');
+            const data = await res.json();
+            const select = document.getElementById('model-select');
+            data.models.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                if (m === data.default) opt.selected = true;
+                select.appendChild(opt);
+            });
+        } catch (e) {
+            console.error('Failed to load models', e);
+        }
+    }
+    init();
+
+    // ── File Upload ───────────────────────────────────────
+    const fileInput = document.getElementById('file-input');
+    const fileArea = document.getElementById('file-input-area');
+    const fileName = document.getElementById('file-name');
+
+    fileInput.addEventListener('change', async () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        fileArea.classList.add('has-file');
+        fileName.textContent = `📄 ${file.name}`;
+
+        // Auto-extract text from file
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('model', document.getElementById('model-select').value);
+
+        fileName.textContent = `⏳ Processando ${file.name}...`;
+        try {
+            const res = await fetch('/api/describe-file', { method: 'POST', body: formData });
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            document.getElementById('descritivo').value = data.text;
+            fileName.textContent = `✅ ${file.name} — texto extraído`;
+        } catch (e) {
+            fileName.textContent = `❌ Erro ao processar arquivo`;
+            console.error(e);
+        }
+    });
+
+    // ── Classify ──────────────────────────────────────────
+    async function classify() {
+        const descritivo = document.getElementById('descritivo').value.trim();
+        if (!descritivo) {
+            showError('⚠️ Por favor, insira uma descrição.');
+            return;
+        }
+        if (isClassifying) return;
+
+        // Reset state
+        isClassifying = true;
+        pathData = [];
+        rejectedCodes.clear();
+        currentCandidates = [];
+        stepCount = 0;
+
+        const btn = document.getElementById('btn-classify');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Classificando...';
+
+        document.getElementById('candidates-area').innerHTML = '';
+        document.getElementById('path-section').innerHTML = '';
+        document.getElementById('result-area').innerHTML = '';
+        showProgress(true, 'Iniciando...', 0);
+
+        const model = document.getElementById('model-select').value;
+
+        try {
+            const response = await fetch('/api/classify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ descritivo, model }),
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.detail || 'Erro no servidor');
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); // keep incomplete line
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const event = JSON.parse(line.slice(6));
+                            handleEvent(event);
+                        } catch (e) {
+                            // skip invalid JSON
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            showError(`❌ ${e.message}`);
+        } finally {
+            isClassifying = false;
+            btn.disabled = false;
+            btn.innerHTML = '🔍 Classificar Material';
+        }
+    }
+
+    // ── Handle SSE Events ─────────────────────────────────
+    function handleEvent(event) {
+        switch (event.type) {
+            case 'candidates':
+                currentCandidates = event.data.opcoes;
+                renderCandidates(currentCandidates, true, null);
+                break;
+
+            case 'step': {
+                stepCount++;
+                const d = event.data;
+                const pct = Math.min((stepCount / 6) * 100, 90);
+                showProgress(true, `Navegando: ${d.descricao.substring(0, 45)}...`, pct);
+
+                const nivel = d.codigo === 'ROOT' ? 0 : Math.floor(d.codigo.length / 2);
+                pathData.push({ nivel, codigo: d.codigo, descricao: d.descricao });
+                renderPath();
+
+                if (currentCandidates.length) {
+                    renderCandidates(currentCandidates, false, d.codigo);
+                    setTimeout(() => { currentCandidates = []; }, 300);
+                }
+                rejectedCodes.clear();
+                break;
+            }
+
+            case 'backtrack': {
+                const d = event.data;
+                rejectedCodes.add(d.codigo);
+                if (pathData.length) pathData.pop();
+                renderPath();
+                if (currentCandidates.length) {
+                    renderCandidates(currentCandidates, false, null);
+                }
+                showToast(`↩️ ${d.razao}`);
+                break;
+            }
+
+            case 'info':
+                showToast(`ℹ️ ${event.data.msg}`);
+                break;
+
+            case 'final': {
+                showProgress(true, '✅ Concluído!', 100);
+                setTimeout(() => showProgress(false), 600);
+
+                const d = event.data;
+                document.getElementById('candidates-area').innerHTML = '';
+
+                if (d.codigo_final === 'ROOT' || !d.codigo_final) {
+                    document.getElementById('result-area').innerHTML = `
+                        <div class="suggest-box">
+                            <div class="suggest-title">💡 Nenhum grupo específico encontrado</div>
+                            <p style="color:#92400e;font-size:0.85rem">Tente uma descrição mais detalhada do material.</p>
+                        </div>`;
+                } else {
+                    document.getElementById('result-area').innerHTML = `
+                        <div class="result-box">
+                            <div class="result-label">✅ Classificação Concluída</div>
+                            <div class="result-code">${d.codigo_final}</div>
+                            <div class="result-desc">${d.descricao_final}</div>
+                        </div>`;
+                }
+                break;
+            }
+        }
+    }
+
+    // ── Render Candidates ─────────────────────────────────
+    function renderCandidates(candidates, analyzing, selectedCode) {
+        const area = document.getElementById('candidates-area');
+        let html = '';
+
+        if (analyzing) {
+            html += `<div class="loading-bar"><div class="spinner"></div><span>Analisando com IA...</span></div>`;
+        }
+
+        candidates.forEach(c => {
+            let cls = '';
+            if (rejectedCodes.has(c.codigo)) cls = 'rejected';
+            else if (selectedCode && c.codigo === selectedCode) cls = 'selected';
+            else if (analyzing) cls = 'analyzing';
+
+            html += `<div class="cand-item ${cls}">
+                <span class="cand-code">${c.codigo}</span>
+                <span class="cand-desc">${c.descricao}</span>
+            </div>`;
+        });
+
+        area.innerHTML = html;
+    }
+
+    // ── Render Path ───────────────────────────────────────
+    function renderPath() {
+        if (!pathData.length) {
+            document.getElementById('path-section').innerHTML = '';
+            return;
+        }
+        let html = `<div class="card path-section" style="margin-top:1.5rem">
+            <div class="card-header">📍 Caminho de Navegação</div>`;
+        pathData.forEach(p => {
+            const indent = p.nivel * 14;
+            html += `<div class="path-item" style="margin-left:${indent}px">
+                <span class="path-level">N${p.nivel}</span>
+                <span class="path-code">${p.codigo}</span>
+                <span class="path-desc">${p.descricao}</span>
+            </div>`;
+        });
+        html += '</div>';
+        document.getElementById('path-section').innerHTML = html;
+    }
+
+    // ── Progress ──────────────────────────────────────────
+    function showProgress(show, text, pct) {
+        const container = document.getElementById('progress-container');
+        if (show) {
+            container.classList.add('active');
+            if (text) document.getElementById('progress-text').textContent = text;
+            if (pct !== undefined) document.getElementById('progress-fill').style.width = pct + '%';
+        } else {
+            container.classList.remove('active');
+        }
+    }
+
+    // ── Toast ─────────────────────────────────────────────
+    function showToast(msg) {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = msg;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3200);
+    }
+
+    // ── Error ─────────────────────────────────────────────
+    function showError(msg) {
+        document.getElementById('result-area').innerHTML = `<div class="error-box">${msg}</div>`;
+    }
+
+    // ── Keyboard shortcut ─────────────────────────────────
+    document.getElementById('descritivo').addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.key === 'Enter') classify();
+    });
+    </script>
+</body>
+</html>

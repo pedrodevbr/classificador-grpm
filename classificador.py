@@ -251,6 +251,9 @@ Formato Obrigatório:
         opcoes_candidatas = opcoes.copy()
         
         while opcoes_candidatas:
+            # Emitir evento de candidatos para visualização na UI
+            yield {"type": "candidates", "data": {"opcoes": opcoes_candidatas}}
+            
             # Pergunta ao LLM qual o melhor entre os candidatos atuais
             prompt = self._construir_prompt(descritivo, opcoes_candidatas)
             codigo_escolhido = self._chamar_llm(prompt)
@@ -262,7 +265,15 @@ Formato Obrigatório:
                 return False # Backtrack para o pai escolher outro ramo (se houver)
 
             # Valida codigo retornado
-            escolha = str(codigo_escolhido).strip()
+            escolha = str(codigo_escolhido).strip().upper()
+            
+            # Verifica se é rejeição explícita (NULL)
+            if escolha == "NULL":
+                logger.info(f"LLM rejeitou todas as opções em {no_atual.codigo}")
+                yield {"type": "info", "data": {"msg": f"Nenhuma opção adequada em {no_atual.descricao}. Voltando..."}}
+                return False
+            
+            escolha = str(codigo_escolhido).strip()  # Reset para original
             # Tenta limpar sufixos comuns
             if escolha not in [o.codigo for o in opcoes_candidatas]:
                  escolha_limpa = escolha.split(' ')[0].split(':')[0].strip()
