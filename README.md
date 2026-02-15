@@ -1,58 +1,83 @@
-# 📦 Classificador Hierárquico de Mercadorias
+# ⚡ Classificador Hierárquico de Materiais
 
-Este projeto é uma ferramenta inteligente para classificação de materiais e serviços industriais utilizando a API LLM do OpenRouter (Grok-4.1-fast, GPT-4o, etc). Ele navega recursivamente por uma árvore de hierarquia de grupos para encontrar a classificação mais específica para um dado item.
+Ferramenta inteligente para classificação de materiais e serviços industriais utilizando IA (LLM via OpenRouter). Navega recursivamente por uma árvore hierárquica de grupos de mercadorias para encontrar a classificação mais específica.
 
 ## ✨ Funcionalidades
 
-*   **Navegação Hierárquica:** Percorre a árvore de grupos nível a nível (Grupo -> Subgrupo -> Classe -> Subclasse).
-*   **LLM Powered:** Usa Inteligência Artificial (recomendado: x-ai/grok-4.1-fast) para tomar decisões semânticas em cada nó.
-*   **Interface Streamlit:** UI amigável para testes rápidos e visualização do caminho de decisão em tempo real.
-*   **Cache Inteligente:** Carregamento otimizado da estrutura hierárquica.
+- 🔍 **Classificação por Texto** — Descreva o material em linguagem natural
+- 📄 **Suporte a PDF** — Upload de documentos com extração automática de texto
+- 🖼️ **Suporte a Imagens** — Envie fotos para classificação visual
+- 📍 **Caminho em Tempo Real** — Visualize cada etapa via SSE streaming
+- ⚡ **Velocidade** — 5-15 segundos para classificação completa
 
 ## 🚀 Como Rodar
 
 ### Pré-requisitos
 
-*   Python 3.10+
-*   Chave de API do OpenRouter (obtenha em [openrouter.ai](https://openrouter.ai))
+- Python 3.10+
+- Chave de API do [OpenRouter](https://openrouter.ai)
 
 ### Instalação
 
-1.  Clone o repositório:
-    ```bash
-    git clone https://github.com/SEU_USUARIO/classificador-grpm.git
-    cd classificador-grpm
-    ```
+```bash
+git clone https://github.com/pedrodevbr/classificador-grpm.git
+cd classificador-grpm
+pip install -r requirements.txt
+```
 
-2.  Instale as dependências:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-3.  Configure sua chave de API (Opcional, pode inserir na UI):
-    ```bash
-    # Windows PowerShell
-    $env:OPENROUTER_API_KEY="sua-chave-aqui"
-    ```
-
-### Executando o App
+### Executando
 
 ```bash
-streamlit run app.py
+# Windows PowerShell
+$env:OPENROUTER_API_KEY="sua-chave-aqui"
+
+# Linux/Mac
+export OPENROUTER_API_KEY="sua-chave-aqui"
+
+# Iniciar
+uvicorn main:app --port 8000
 ```
+
+Acesse: `http://localhost:8000`
 
 ## 📂 Estrutura do Projeto
 
-*   `app.py`: Interface do usuário (Frontend Streamlit).
-*   `classificador.py`: Lógica de classificação e integração com LLM.
-*   `data/grpms.xlsx`: Banco de dados com a estrutura hierárquica dos grupos.
+| Arquivo | Descrição |
+|---|---|
+| `main.py` | Backend FastAPI (SSE streaming, file upload) |
+| `classificador.py` | Lógica de classificação hierárquica + LLM |
+| `static/index.html` | Frontend (HTML/CSS/JS) |
+| `data/grpms.xlsx` | Árvore hierárquica de grupos de mercadorias |
+| `Dockerfile` | Container para deploy |
+| `render.yaml` | Blueprint para deploy no Render |
+
+## 🌐 API Endpoints
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET` | `/` | Frontend HTML |
+| `GET` | `/api/models` | Lista modelos LLM disponíveis |
+| `POST` | `/api/classify` | Classifica material (SSE streaming) |
+| `POST` | `/api/describe-file` | Extrai texto de PDF/imagem |
+
+## 🚀 Deploy
+
+**Render (gratuito):** Conecte o repositório, adicione `OPENROUTER_API_KEY` nas env vars.
+
+**Docker:**
+```bash
+docker build -t classificador .
+docker run -p 8000:8000 -e OPENROUTER_API_KEY="sua-chave" classificador
+```
+
+Veja o [guia completo de deploy](docs/deployment_guide_fastapi.md).
 
 ## 🛠️ Tecnologias
 
-*   [Streamlit](https://streamlit.io/)
-*   [OpenAI Python Library](https://github.com/openai/openai-python) (Compatível com OpenRouter)
-*   [Pydantic](https://docs.pydantic.dev/) (Validação de dados)
-*   [Pandas](https://pandas.pydata.org/)
+- [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/)
+- [OpenAI Python Library](https://github.com/openai/openai-python) (via OpenRouter)
+- [Pydantic](https://docs.pydantic.dev/)
+- [Pandas](https://pandas.pydata.org/)
 
 ---
-**Nota:** Este projeto busca por `data/grpms.xlsx`. Certifique-se de que este arquivo existe na pasta `data`.
+**Nota:** O arquivo `data/grpms.xlsx` é necessário para a classificação.

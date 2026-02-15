@@ -5,4 +5,3 @@ __pycache__/
 .vscode/
 *.log
 tmp/
-.streamlit/secrets.toml
